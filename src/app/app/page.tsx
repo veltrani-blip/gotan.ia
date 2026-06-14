@@ -2,6 +2,8 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { Chat } from "@/components/app/Chat";
 import { LogoutButton } from "@/components/app/LogoutButton";
+import { TaskList } from "@/components/app/TaskList";
+import { AppTabs } from "@/components/app/AppTabs";
 
 export default async function AppPage() {
   const supabase = await createClient();
@@ -29,7 +31,7 @@ export default async function AppPage() {
           </div>
         </div>
       </header>
-      <Chat />
+      <AppTabs chatContent={<Chat />} tasksContent={<TaskList />} />
     </div>
   );
 }

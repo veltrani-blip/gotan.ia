@@ -7,30 +7,53 @@ import { Button } from "@/components/ui/Button";
 
 type Mode = "login" | "signup";
 
+const AUTH_ERRORS: Record<string, string> = {
+  "Invalid login credentials": "Email ou senha incorretos.",
+  "Email not confirmed": "Email não confirmado. Verifique sua caixa de entrada.",
+  "User already registered": "Este email já está cadastrado. Faça login.",
+  "Password should be at least 6 characters": "A senha precisa ter pelo menos 6 caracteres.",
+  "Unable to validate email address: invalid format": "Formato de email inválido.",
+  "signup_disabled": "Cadastro desativado. Entre em contato com o suporte.",
+};
+
+function translateError(msg: string): string {
+  return AUTH_ERRORS[msg] ?? msg;
+}
+
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
   const supabase = createClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const isLogin = mode === "login";
 
   async function handleEmail() {
     setError(null);
+    setInfo(null);
     setLoading(true);
-    const fn = isLogin
-      ? supabase.auth.signInWithPassword({ email, password })
-      : supabase.auth.signUp({ email, password });
-    const { error } = await fn;
-    setLoading(false);
-    if (error) {
-      setError(error.message);
-      return;
+
+    if (isLogin) {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      setLoading(false);
+      if (error) { setError(translateError(error.message)); return; }
+      router.push("/app");
+      router.refresh();
+    } else {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      setLoading(false);
+      if (error) { setError(translateError(error.message)); return; }
+      // Se sessão nula = confirmação de email pendente
+      if (!data.session) {
+        setInfo("Cadastro realizado! Verifique seu email para ativar a conta.");
+        return;
+      }
+      router.push("/app");
+      router.refresh();
     }
-    router.push("/app");
-    router.refresh();
   }
 
   async function handleGoogle() {
@@ -69,6 +92,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           />
 
           {error && <p className="text-sm text-orange-bright">{error}</p>}
+          {info && <p className="text-sm text-accent">{info}</p>}
 
           <Button onClick={handleEmail} disabled={loading} className="mt-1 w-full">
             {loading ? "Aguarde..." : isLogin ? "Entrar" : "Criar conta"}
