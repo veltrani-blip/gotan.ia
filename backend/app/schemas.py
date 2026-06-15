@@ -148,6 +148,8 @@ class LocationLog(BaseModel):
     timestamp: datetime
     coordinates: Coordinates
     status: str  # "inside" | "outside"
+    # True quando esta amostra de saída já gerou alerta (dedup por episódio).
+    alerted: bool = False
 
 
 class Notification(BaseModel):

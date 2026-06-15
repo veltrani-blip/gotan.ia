@@ -128,6 +128,25 @@ def test_geofence_breach(fresh_repo):
     assert len(repo.list_notifications(uid)) >= 1
 
 
+def test_geofence_alert_not_repeated(fresh_repo):
+    repo = fresh_repo
+    uid = _make_user(repo, geofence={
+        "lat": -22.5220, "lng": -41.9472, "radiusMeters": 100, "enabled": True,
+    })
+    repo.add_subdoc(uid, SUB_LOCATIONS, {
+        "timestamp": datetime(2026, 6, 15, 10, 0),
+        "coordinates": {"lat": -22.5300, "lng": -41.9500},  # fora
+        "status": "outside",
+    })
+    now = datetime(2026, 6, 15, 10, 5)
+    assert el.check_geofence(now=now) == 1
+    # Mesma amostra estagnada → não alerta de novo nas próximas execuções.
+    assert el.check_geofence(now=datetime(2026, 6, 15, 10, 15)) == 0
+    notifs_after_first = len(repo.list_notifications(uid))
+    assert el.check_geofence(now=datetime(2026, 6, 15, 10, 25)) == 0
+    assert len(repo.list_notifications(uid)) == notifs_after_first
+
+
 def test_geofence_inside_no_alert(fresh_repo):
     repo = fresh_repo
     uid = _make_user(repo, geofence={

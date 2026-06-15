@@ -17,8 +17,7 @@ import logging
 from datetime import datetime, time, timedelta
 from typing import Optional
 
-import pytz
-
+from ..clock import local_now as _clock_now
 from ..config import get_settings
 from ..repository import (
     SUB_LOCATIONS,
@@ -34,9 +33,12 @@ logger = logging.getLogger("ana.event_loop")
 
 
 def local_now() -> datetime:
-    """Horário atual (naive) no fuso configurado, truncado ao minuto."""
-    tz = pytz.timezone(get_settings().timezone)
-    return datetime.now(tz).replace(second=0, microsecond=0, tzinfo=None)
+    """Horário atual (naive) no fuso configurado, truncado ao minuto.
+
+    Usa o relógio central (:mod:`app.clock`) para que o event loop e os
+    routers compartilhem a mesma base de tempo.
+    """
+    return _clock_now().replace(second=0, microsecond=0)
 
 
 def _parse_hhmm(value: str) -> Optional[time]:
@@ -149,12 +151,20 @@ def check_geofence(now: Optional[datetime] = None) -> int:
         latest = repo.latest_subdoc(user_id, SUB_LOCATIONS)
         if not latest:
             continue
-        coords = latest[1].get("coordinates")
+        loc_id, loc = latest
+        coords = loc.get("coordinates")
         if not coords:
             continue
-        if not inside_geofence(coords, geofence):
-            proactive.notify_family_geofence_breach(user_id, user_data, coords, now)
-            breaches += 1
+        if inside_geofence(coords, geofence):
+            continue
+        # Alerta apenas uma vez por episódio de saída: a amostra que já
+        # gerou alerta é marcada com ``alerted``; execuções seguintes do job
+        # ignoram a mesma amostra até que uma posição "inside" chegue.
+        if loc.get("alerted"):
+            continue
+        proactive.notify_family_geofence_breach(user_id, user_data, coords, now)
+        repo.update_subdoc(user_id, SUB_LOCATIONS, loc_id, {"alerted": True})
+        breaches += 1
     return breaches
 
 

@@ -15,8 +15,8 @@ para alimentar o dashboard dos familiares.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 
+from ..clock import local_now
 from ..config import get_settings
 from ..repository import get_repository
 from ..schemas import NotificationChannel, NotificationStatus
@@ -35,7 +35,7 @@ def _record(user_id: str, channel: str, body: str, *, to=None, critical=False,
             "body": body,
             "status": status.value,
             "critical": critical,
-            "createdAt": datetime.utcnow(),
+            "createdAt": local_now(),
         }
     )
 

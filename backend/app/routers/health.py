@@ -3,10 +3,9 @@ localização (geofencing), sentinela e treino cognitivo."""
 
 from __future__ import annotations
 
-from datetime import datetime
-
 from fastapi import APIRouter, HTTPException
 
+from ..clock import local_now
 from ..repository import (
     SUB_HEALTH_LOGS,
     SUB_LOCATIONS,
@@ -42,7 +41,7 @@ def confirm_medication(user_id: str, payload: MedicationConfirm):
     """Idoso confirma que tomou o remédio (via voz → function calling)."""
     _require_user(user_id)
     repo = get_repository()
-    taken_at = payload.takenAt or datetime.utcnow()
+    taken_at = payload.takenAt or local_now()
 
     repo.update_subdoc(user_id, SUB_MEDICATIONS, payload.medicationId,
                        {"lastTaken": taken_at})
@@ -66,7 +65,7 @@ def log_hydration(user_id: str, payload: HydrationLog):
     _require_user(user_id)
     repo = get_repository()
     repo.add_subdoc(user_id, SUB_HEALTH_LOGS, {
-        "timestamp": datetime.utcnow(),
+        "timestamp": local_now(),
         "category": HealthCategory.hydration.value,
         "details": {"drank": payload.drank},
     })
@@ -77,16 +76,25 @@ def log_hydration(user_id: str, payload: HydrationLog):
 def update_location(user_id: str, payload: LocationUpdate):
     user = _require_user(user_id)
     repo = get_repository()
-    now = datetime.utcnow()
+    now = local_now()
     coords = {"lat": payload.lat, "lng": payload.lng}
     geofence = user.get("geofence") or {}
     status = "inside"
     if geofence.get("enabled", False):
         status = "inside" if inside_geofence(coords, geofence) else "outside"
+
+    # Alerta só na transição inside→outside; amostras "outside" subsequentes
+    # do mesmo episódio são marcadas como já alertadas para não duplicar.
+    prev = repo.latest_subdoc(user_id, SUB_LOCATIONS)
+    prev_status = prev[1].get("status") if prev else "inside"
+    is_outside = status == "outside"
+    should_alert = is_outside and prev_status != "outside"
+
     repo.add_subdoc(user_id, SUB_LOCATIONS, {
         "timestamp": now, "coordinates": coords, "status": status,
+        "alerted": is_outside,
     })
-    if status == "outside":
+    if should_alert:
         proactive.notify_family_geofence_breach(user_id, user, coords, now)
     return {"status": status}
 
@@ -98,7 +106,7 @@ def sentinel_event(user_id: str, payload: SentinelEvent):
     if not (user.get("settings") or {}).get("sentinelEnabled", True):
         return {"status": "ignored", "reason": "sentinel disabled"}
     proactive.handle_sentinel_event(user_id, user, payload.soundType,
-                                    datetime.utcnow())
+                                    local_now())
     return {"status": "alerted"}
 
 

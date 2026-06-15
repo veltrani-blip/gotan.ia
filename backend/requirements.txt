@@ -10,6 +10,7 @@ httpx==0.27.0
 
 # Integrações externas (opcionais em dev — ver README)
 google-cloud-firestore==2.16.1
+google-cloud-aiplatform==1.71.1  # inclui o SDK vertexai (Gemini 1.5 Pro)
 twilio==9.2.3
 
 # Dev / testes
