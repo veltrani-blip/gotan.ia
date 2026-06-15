@@ -488,7 +488,11 @@ export function VoiceBuilder() {
                 "gotan:voice-project",
               );
 
-              router.push("/");
+              const form = document.createElement("form");
+              form.method = "POST";
+              form.action = "/auth/logout";
+              document.body.appendChild(form);
+              form.submit();
             }}
           >
             Sair

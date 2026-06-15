@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { VoicePrompt } from "@/components/voice/VoicePrompt";
+import { PricingSection } from "@/components/pricing/PricingSection";
 
 export default function HomePage() {
   return (
@@ -8,8 +9,8 @@ export default function HomePage() {
         <Image src="/branding/gotan-logo.png" alt="gotan.ia" width={220} height={68} priority />
         <div className="nav-actions">
           <a className="nav-link" href="#builder">Builder</a>
-          <a className="nav-link" href="#voice">Voz real</a>
-          <a className="nav-link" href="#privacy">Privacidade</a>
+          <a className="nav-link" href="#pricing">Planos</a>
+          <a className="nav-link" href="/login">Entrar</a>
           <a href="#builder" className="gradient-button" style={{ padding: "10px 18px", borderRadius: 11, textDecoration: "none", fontSize: 14, fontWeight: 800 }}>Criar agora</a>
         </div>
       </nav>
@@ -22,6 +23,7 @@ export default function HomePage() {
           <VoicePrompt />
         </div>
       </section>
+      <PricingSection />
     </main>
   );
 }
